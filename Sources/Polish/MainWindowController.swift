@@ -44,6 +44,12 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         super.init()
         NotificationCenter.default.addObserver(self, selector: #selector(languageChanged),
                                                name: .languageChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(catalogChanged),
+                                               name: .modelCatalogChanged, object: nil)
+    }
+
+    @objc private func catalogChanged() {
+        if window != nil { refreshStatus() }
     }
 
     func show() {

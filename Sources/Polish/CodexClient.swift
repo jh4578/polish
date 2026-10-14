@@ -129,7 +129,7 @@ final class CodexClient {
             ]],
             "stream": true,
             "store": false,
-            "reasoning": ["effort": "none"],   // fastest effort the ChatGPT plan allows
+            "reasoning": ["effort": Settings.reasoningEffort],
         ]
     }
 

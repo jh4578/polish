@@ -12,6 +12,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextViewDele
     private var langPopup: NSPopUpButton!
     private var hotKeyLabel: NSTextField!
     private var modelPopup: NSPopUpButton!
+    private var modelStatus: NSTextField!
     private var panelSwitch: NSSwitch!
     private var promptView: NSTextView!
 
@@ -22,6 +23,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextViewDele
         super.init()
         NotificationCenter.default.addObserver(self, selector: #selector(languageChanged),
                                                name: .languageChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(catalogChanged),
+                                               name: .modelCatalogChanged, object: nil)
     }
 
     func show() {
@@ -30,7 +33,20 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextViewDele
         NSApp.activate(ignoringOtherApps: true)
         if window?.isVisible != true { window?.center() }
         window?.makeKeyAndOrderFront(nil)
+        ModelCatalog.refresh()
     }
+
+    @objc private func catalogChanged() {
+        guard window != nil else { return }
+        modelPopup.removeAllItems()
+        for option in Settings.modelOptions { modelPopup.addItem(withTitle: option.label) }
+        if let idx = Settings.modelOptions.firstIndex(where: { $0.id == Settings.model }) {
+            modelPopup.selectItem(at: idx)
+        }
+        modelStatus.stringValue = ModelCatalog.status
+    }
+
+    @objc private func refreshModels() { ModelCatalog.refresh() }
 
     @objc private func languageChanged() {
         guard window != nil else { return }
@@ -71,6 +87,16 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextViewDele
         modelPopup = NSPopUpButton()
         for opt in Settings.modelOptions { modelPopup.addItem(withTitle: opt.label) }
         modelPopup.target = self; modelPopup.action = #selector(changeModel)
+        modelPopup.widthAnchor.constraint(lessThanOrEqualToConstant: 250).isActive = true
+        modelStatus = subLabel(ModelCatalog.status)
+        modelStatus.lineBreakMode = .byTruncatingTail
+        let refreshModelsButton = NSButton(title: L("刷新模型", "Refresh models"),
+                                          target: self, action: #selector(refreshModels))
+        refreshModelsButton.bezelStyle = .rounded
+        let modelRefreshRow = NSStackView(views: [modelStatus, NSView(), refreshModelsButton])
+        modelRefreshRow.orientation = .horizontal
+        modelRefreshRow.spacing = 8
+        modelRefreshRow.widthAnchor.constraint(equalToConstant: rowWidth).isActive = true
 
         panelSwitch = NSSwitch()
         panelSwitch.target = self; panelSwitch.action = #selector(togglePanel)
@@ -113,7 +139,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextViewDele
             sep(),
             settingRow(L("快捷键", "Hotkey"), subtitle: hotKeyLabel, control: changeButton),
             sep(),
-            settingRow(L("模型", "Model"), subtitle: subLabel(L("mini 更快，5.5 质量更高", "mini is faster, 5.5 higher quality")), control: modelPopup),
+            settingRow(L("模型", "Model"), subtitle: subLabel(L("来自当前 Codex 登录账号", "From the signed-in Codex account")), control: modelPopup),
+            modelRefreshRow,
             sep(),
             settingRow(L("按快捷键时显示弹窗", "Show popup on hotkey"),
                        subtitle: subLabel(L("关闭后有选中直接润色；没选中仍弹窗", "Off: instant polish when text is selected")), control: panelSwitch),

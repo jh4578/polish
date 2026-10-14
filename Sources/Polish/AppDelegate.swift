@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(rebuildStatusMenu),
                                                name: .languageChanged, object: nil)
         MainWindowController.shared.show()   // show the visible window on launch
+        ModelCatalog.refresh()
     }
 
     @objc private func rebuildStatusMenu() {

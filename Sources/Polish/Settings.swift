@@ -5,23 +5,36 @@ enum Settings {
     static let defaultPolishInstruction =
         "Polish the text: improve grammar, fluency, and clarity while fully preserving the meaning and tone."
 
-    /// Models the ChatGPT-subscription account accepts, fastest first.
-    /// (Verified: gpt-5-mini/nano, 5.1/5.2/5.3/5.6, o4-mini etc. are all rejected.)
+    /// Models verified with this Mac's ChatGPT subscription, fastest first.
     struct ModelOption {
         let id: String
         let zh: String
         let en: String
         var label: String { L(zh, en) }
     }
-    static let modelOptions = [
-        ModelOption(id: "gpt-5.4-mini", zh: "速度优先 · gpt-5.4-mini（约1秒）", en: "Fast · gpt-5.4-mini (~1s)"),
-        ModelOption(id: "gpt-5.5", zh: "质量优先 · gpt-5.5（约2秒）", en: "Quality · gpt-5.5 (~2s)"),
+    private static let fallbackModelOptions = [
+        ModelOption(id: "gpt-6-luna", zh: "速度优先 · gpt-6-luna", en: "Fast · gpt-6-luna"),
+        ModelOption(id: "gpt-6.1-sol", zh: "质量优先 · gpt-6.1-sol", en: "Quality · gpt-6.1-sol"),
     ]
+
+    static var modelOptions: [ModelOption] {
+        let models = ModelCatalog.models
+        return models.isEmpty ? fallbackModelOptions : models.map {
+            ModelOption(id: $0.slug, zh: $0.display_name, en: $0.display_name)
+        }
+    }
+
+    static var reasoningEffort: String {
+        ModelCatalog.models.first(where: { $0.slug == model })?.effort ?? "low"
+    }
 
     static var model: String {
         get {
             let value = UserDefaults.standard.string(forKey: "Model")
-            return modelOptions.contains { $0.id == value } ? value! : modelOptions[0].id
+            // Preserve the user's speed/quality preference when retiring old models.
+            let migrated = value == "gpt-5.5" ? "gpt-6.1-sol"
+                : value == "gpt-5.4-mini" ? "gpt-6-luna" : value
+            return modelOptions.first(where: { $0.id == migrated })?.id ?? modelOptions[0].id
         }
         set { UserDefaults.standard.set(newValue, forKey: "Model") }
     }

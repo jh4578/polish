@@ -37,8 +37,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Stable ad-hoc signature so the Accessibility grant survives rebuilds.
-# (No --deep: the bundled codex runtime keeps its own valid signature.)
+# Ad-hoc signatures change the code hash on rebuild. Installing this bundle
+# requires reauthorizing Accessibility when the existing grant pins that hash.
+# Keep builds separate from installation; never reset TCC permissions here.
 codesign --force --sign - --identifier "$BUNDLE_ID" "$APP"
 
 echo

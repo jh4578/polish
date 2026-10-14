@@ -8,7 +8,8 @@ Pure Swift/AppKit, ~284 KB, no runtime dependencies.
 
 - Calls the Codex backend directly (`https://chatgpt.com/backend-api/codex/responses`, the same endpoint the Codex CLI uses) with `URLSession` — **no API key, no Node, no SDK**
 - Auth reuses the local Codex **ChatGPT subscription login** (`~/.codex/auth.json`); the access token is read and, when expired, refreshed via the standard OAuth refresh-token flow. Usage counts against your ChatGPT plan.
-- Model `gpt-5.5` with `reasoning.effort: "none"` — the fastest combination a ChatGPT-subscription account allows (see Notes on speed).
+- Fetches the model catalog for the signed-in Codex account on launch and whenever Settings opens. Settings also has a refresh button. Hidden models are excluded; the last successful list is cached per account.
+- Uses each model's lowest supported reasoning effort. Built-in fallback choices are `gpt-6-luna` and `gpt-6.1-sol`. Old speed/quality selections migrate to the corresponding new choice. Catalog visibility does not guarantee a successful inference request, and this list may differ from ChatGPT on the web.
 
 ## Usage
 
@@ -50,6 +51,7 @@ Sources/Polish/
   HotKey.swift                # global hotkey registration (Carbon RegisterEventHotKey)
   HotKeyConfig.swift          # persisted hotkey setting (default ⌥P) + display names
   HotKeyRecorderController.swift # "change hotkey" recorder window
+  ModelCatalog.swift          # account model discovery, reasoning metadata, cached fallback
   Settings.swift              # persisted settings (panel on/off, default prompt)
   SettingsWindowController.swift # settings window
   ProgressHUD.swift           # tiny floating HUD for instant-polish mode
@@ -63,14 +65,16 @@ build_app.sh                  # packages the .app
 ## Customizing
 
 - **Hotkey / panel on-off / default polish prompt**: menu-bar icon → 设置… (stored in UserDefaults)
-- **Model / reasoning effort**: `model` and the `reasoning.effort` in `CodexClient.swift`
+- **Model**: selected in Settings from the account catalog. Reasoning effort follows the selected model's supported levels. Refresh failures retain the account's cached list; if no cache is available, built-in options are shown.
 
-## Notes on speed
+## Model discovery
 
-A ChatGPT-subscription login is locked to `gpt-5.5` server-side (gpt-5, gpt-5.1, gpt-5-mini, gpt-5.5-codex are all rejected), and `reasoning.effort` can be at most `none`. That yields ~1.6 s to first token and ~2 s total — the floor for this account type. Sub-second latency would require an API key plus a small model (e.g. gpt-4o-mini), which is intentionally not used here.
+Model metadata comes from the same Codex backend used for inference. The client version is read from the installed Codex `~/.codex/models_cache.json` metadata (fallback: `0.162.0`); catalog contents are fetched from the server using the current account login. Only public model metadata is cached in UserDefaults, scoped to the account ID. No credentials are cached there. Opening Settings retries failed refreshes.
+
+Validated on 2026-10-14: seven visible models returned for this account, and both `gpt-6-luna` and `gpt-6.1-sol` completed a rewrite with `low` reasoning. Retired `gpt-5.5` and `gpt-5.4-mini` returned model-not-supported errors.
 
 ## Known limitations
 
-- Ad-hoc code signing changes the binary's hash on every rebuild, so macOS invalidates the Accessibility grant each time. After rebuilding, re-toggle Polish in System Settings → Accessibility. (A stable self-signed certificate would fix this permanently.)
+- Ad-hoc code signing changes the binary's hash on every rebuild, so macOS invalidates the Accessibility grant each time. After rebuilding, re-toggle Polish in System Settings → Accessibility. A certificate with a stable signing identity can preserve grants across subsequent updates, but changing this existing hash-pinned identity still requires a one-time reauthorization. Keep builds separate from installation when retaining the current grant is required. Never edit or reset TCC records as part of a build.
 - Multi-round replacement works by undo-then-paste; a few apps (some web rich-text editors) may handle undo differently. First-round replacement works anywhere ⌘C/⌘V works.
 - With no selection, you can still type an instruction to generate text — it's inserted at the cursor.
